@@ -2,8 +2,9 @@ from fastapi import FastAPI, status, HTTPException, Path, Body
 from fastapi.responses import JSONResponse
 from fastapi_swagger import patch_fastapi
 from contextlib import asynccontextmanager
-from typing import Annotated, Optional
+from typing import Optional
 from pydantic import BaseModel, Field
+from enum import Enum
 
 # ---------------------- Lifespan ---------------------- #
 @asynccontextmanager
@@ -21,19 +22,27 @@ patch_fastapi(app)
 expenses_db = {}  # key: id (int), value: expense dict
 current_id = 1
 
+# ---------------------- Enum Class ---------------------- #
+class PaymentType(str, Enum):
+    cash = "cash"
+    card = "card"
+    crypto = "crypto"
+
 # ---------------------- Pydantic Models ---------------------- #
-class ExpenseCreate(BaseModel):
-    description: str = Field(..., min_length=1, max_length=200)
+class ExpenseBase(BaseModel):
+    title: str = Field(..., description="Expense title", min_length=3)
     amount: float = Field(..., gt=0, description="Must be positive")
-
-class ExpenseUpdate(BaseModel):
     description: Optional[str] = Field(None, min_length=1, max_length=200)
-    amount: Optional[float] = Field(None, gt=0)
+    payment: PaymentType = Field(..., description="Payment type")
 
-class ExpenseResponse(BaseModel):
+class ExpenseCreate(ExpenseBase):
+    pass
+
+class ExpenseUpdate(ExpenseBase):
+    pass
+
+class ExpenseResponse(ExpenseBase):
     id: int
-    description: str
-    amount: float
 
 # ---------------------- Helper ---------------------- #
 def find_expense_or_404(expense_id: int):
@@ -58,7 +67,7 @@ def create_expense(expense: ExpenseCreate = Body()):
     global current_id
     new_id = current_id
     current_id += 1
-    expense_dict = {"id": new_id, "description": expense.description, "amount": expense.amount}
+    expense_dict = {"id": new_id,"title": expense.title.title(), "amount": expense.amount, "description": expense.description, "payment": expense.payment}
     expenses_db[new_id] = expense_dict
     return expense_dict
 
@@ -81,10 +90,14 @@ def update_expense(
 ):
     expense = find_expense_or_404(id)
     # Update only provided fields
-    if update_data.description is not None:
-        expense["description"] = update_data.description
+    if update_data.title is not None:
+        expense["title"] = update_data.title
     if update_data.amount is not None:
         expense["amount"] = update_data.amount
+    if update_data.description is not None:
+        expense["description"] = update_data.description
+    if update_data.payment is not None:
+        expense["payment"] = update_data.payment
     return expense
 
 # DELETE /expenses/{id} - Delete an expense
