@@ -20,6 +20,10 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 # from myapp import mymodel
 # target_metadata = mymodel.Base.metadata
+from Expenses.Models import Payment_History
+from Users.Models import UserModel
+from Users.SessionModels import RefreshTokenModel
+
 target_metadata = Base.metadata
 
 # other values from the config, defined by the needs of env.py,
@@ -67,7 +71,9 @@ def run_migrations_online() -> None:
 
     with connectable.connect() as connection:
         context.configure(
-            connection=connection, target_metadata=target_metadata
+            connection=connection,
+            target_metadata=target_metadata,
+            render_as_batch=True
         )
 
         with context.begin_transaction():
