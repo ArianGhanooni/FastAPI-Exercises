@@ -2,9 +2,13 @@ from fastapi import FastAPI, status, HTTPException, Path, Body, Depends
 from fastapi.responses import JSONResponse
 from fastapi_swagger import patch_fastapi
 from contextlib import asynccontextmanager
-from Database import Base, engine, get_db, Payment_History
+from Core.Database import Base, engine, get_db
 from sqlalchemy.orm import Session
-from Schemas import ExpenseCreate, ExpenseUpdate, ExpenseResponse
+from Core.Schemas import ExpenseCreate, ExpenseUpdate, ExpenseResponse
+
+from Users.Models import UserModel
+from Users.SessionModels import RefreshTokenModel
+from Expenses.Models import Payment_History
 
 # ---------------------- Lifespan ---------------------- #
 # Application startup and shutdown events
