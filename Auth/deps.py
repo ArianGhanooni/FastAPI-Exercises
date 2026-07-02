@@ -3,11 +3,18 @@ from fastapi.security import HTTPBearer
 from sqlalchemy.orm import Session
 
 from Core.Database import get_db
+from Core.i18n import detect_language, get_translations
 from Auth.JWT_Auth import decode_token, ACCESS_TOKEN_COOKIE_NAME, CSRF_TOKEN_COOKIE_NAME
 from Users.Models import UserModel
 from Users.SessionModels import RefreshTokenModel
 
 bearer_scheme = HTTPBearer(auto_error=False)
+
+
+def _(request: Request, key: str) -> str:
+    lang = detect_language(request)
+    t = get_translations(lang)
+    return t.gettext(key)
 
 
 def get_current_user(
@@ -23,7 +30,7 @@ def get_current_user(
     if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
+            detail=_(request, "not_authenticated"),
         )
 
     try:
@@ -31,13 +38,13 @@ def get_current_user(
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired token",
+            detail=_(request, "invalid_token"),
         )
 
     if payload.get("type") != "access":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token type",
+            detail=_(request, "invalid_token_type"),
         )
 
     user_id = int(payload["sub"])
@@ -46,7 +53,7 @@ def get_current_user(
     if not user or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found or inactive",
+            detail=_(request, "user_not_found_or_inactive"),
         )
 
     return user
@@ -59,11 +66,11 @@ def verify_csrf_token(request: Request):
     if not cookie_csrf or not header_csrf:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="CSRF token missing",
+            detail=_(request, "csrf_token_missing"),
         )
 
     if cookie_csrf != header_csrf:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="CSRF token mismatch",
+            detail=_(request, "csrf_token_mismatch"),
         )

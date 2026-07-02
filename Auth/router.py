@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from Core.Database import get_db
 from Core.Security import hash_password, verify_password
+from Core.i18n import detect_language, get_translations
 from Users.Models import UserModel
 from Users.SessionModels import RefreshTokenModel
 from Auth.Schema import LoginSchema, RegisterSchema, UserResponse, RefreshResponse
@@ -24,18 +25,24 @@ from Auth.deps import get_current_user, verify_csrf_token
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+def _(request: Request, key: str) -> str:
+    lang = detect_language(request)
+    t = get_translations(lang)
+    return t.gettext(key)
+
+
 @router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def register(data: RegisterSchema, db: Session = Depends(get_db)):
+def register(request: Request, data: RegisterSchema, db: Session = Depends(get_db)):
     if db.query(UserModel).filter_by(username=data.username).first():
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Username already taken",
+            detail=_(request, "register_username_taken"),
         )
 
     if db.query(UserModel).filter_by(email=data.email).first():
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Email already registered",
+            detail=_(request, "register_email_taken"),
         )
 
     user = UserModel(
@@ -50,19 +57,19 @@ def register(data: RegisterSchema, db: Session = Depends(get_db)):
 
 
 @router.post("/login", status_code=status.HTTP_200_OK)
-def login(data: LoginSchema, response: Response, db: Session = Depends(get_db)):
+def login(request: Request, data: LoginSchema, response: Response, db: Session = Depends(get_db)):
     user = db.query(UserModel).filter_by(username=data.username).first()
 
     if not user or not verify_password(data.password, user.password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid username or password",
+            detail=_(request, "login_invalid_credentials"),
         )
 
     if not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is disabled",
+            detail=_(request, "login_account_disabled"),
         )
 
     access_token = create_access_token(user.id)
@@ -82,15 +89,15 @@ def login(data: LoginSchema, response: Response, db: Session = Depends(get_db)):
     set_csrf_cookie(response, csrf_token)
 
     return {
-        "message": "Login successful",
+        "message": _(request, "login_success"),
         "csrf_token": csrf_token,
     }
 
 
 @router.post("/logout", status_code=status.HTTP_200_OK)
 def logout(
-    response: Response,
     request: Request,
+    response: Response,
     db: Session = Depends(get_db),
     _csrf: None = Depends(verify_csrf_token),
 ):
@@ -107,7 +114,7 @@ def logout(
             pass
 
     clear_auth_cookies(response)
-    return {"message": "Logged out successfully"}
+    return {"message": _(request, "logout_success")}
 
 
 @router.post("/refresh", status_code=status.HTTP_200_OK)
@@ -117,7 +124,7 @@ def refresh_token(request: Request, response: Response, db: Session = Depends(ge
     if not refresh_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Refresh token not found",
+            detail=_(request, "refresh_token_not_found"),
         )
 
     try:
@@ -125,13 +132,13 @@ def refresh_token(request: Request, response: Response, db: Session = Depends(ge
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired refresh token",
+            detail=_(request, "refresh_token_invalid"),
         )
 
     if payload.get("type") != "refresh":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token type",
+            detail=_(request, "refresh_token_invalid_type"),
         )
 
     jti = payload.get("jti")
@@ -140,7 +147,7 @@ def refresh_token(request: Request, response: Response, db: Session = Depends(ge
     if not session:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Refresh token has been revoked",
+            detail=_(request, "refresh_token_revoked"),
         )
 
     db.delete(session)
@@ -152,7 +159,7 @@ def refresh_token(request: Request, response: Response, db: Session = Depends(ge
     if not user or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found or inactive",
+            detail=_(request, "refresh_token_user_not_found"),
         )
 
     new_access_token = create_access_token(user.id)
@@ -172,7 +179,7 @@ def refresh_token(request: Request, response: Response, db: Session = Depends(ge
     set_csrf_cookie(response, csrf_token)
 
     return {
-        "message": "Token refreshed",
+        "message": _(request, "token_refreshed"),
         "csrf_token": csrf_token,
     }
 

@@ -1,0 +1,98 @@
+# English translations
+# Copyright (C) 2026
+# This file is distributed under the same license as the FastAPI project.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: FastAPI-Exercises 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-07-01 00:00+0000\n"
+"PO-Revision-Date: 2026-07-01 00:00+0000\n"
+"Last-Translator: \n"
+"Language-Team: English\n"
+"Language: en\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+# General
+msgid "welcome_message"
+msgstr "Welcome to Expense Management API"
+
+# Auth messages
+msgid "register_success"
+msgstr "User registered successfully"
+
+msgid "register_username_taken"
+msgstr "Username already taken"
+
+msgid "register_email_taken"
+msgstr "Email already registered"
+
+msgid "login_success"
+msgstr "Login successful"
+
+msgid "login_invalid_credentials"
+msgstr "Invalid username or password"
+
+msgid "login_account_disabled"
+msgstr "Account is disabled"
+
+msgid "logout_success"
+msgstr "Logged out successfully"
+
+msgid "token_refreshed"
+msgstr "Token refreshed"
+
+msgid "refresh_token_not_found"
+msgstr "Refresh token not found"
+
+msgid "refresh_token_invalid"
+msgstr "Invalid or expired refresh token"
+
+msgid "refresh_token_invalid_type"
+msgstr "Invalid token type"
+
+msgid "refresh_token_revoked"
+msgstr "Refresh token has been revoked"
+
+msgid "refresh_token_user_not_found"
+msgstr "User not found or inactive"
+
+# Auth errors
+msgid "not_authenticated"
+msgstr "Not authenticated"
+
+msgid "invalid_token"
+msgstr "Invalid or expired token"
+
+msgid "invalid_token_type"
+msgstr "Invalid token type"
+
+msgid "user_not_found_or_inactive"
+msgstr "User not found or inactive"
+
+msgid "csrf_token_missing"
+msgstr "CSRF token missing"
+
+msgid "csrf_token_mismatch"
+msgstr "CSRF token mismatch"
+
+# Expense messages
+msgid "expense_not_found"
+msgstr "Expense not found"
+
+msgid "expense_created"
+msgstr "Expense created successfully"
+
+msgid "expense_updated"
+msgstr "Expense updated successfully"
+
+msgid "expense_deleted"
+msgstr "Expense deleted successfully"
+
+msgid "expenses_retrieved"
+msgstr "Expenses retrieved successfully"
+
+msgid "expense_retrieved"
+msgstr "Expense retrieved successfully"
