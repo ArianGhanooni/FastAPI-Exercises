@@ -5,6 +5,7 @@ from datetime import timezone
 from uuid import uuid4
 
 import jwt
+import secrets
 
 SECRET_KEY = "CHANGE_ME_IN_PRODUCTION"
 ALGORITHM = "HS256"
@@ -14,6 +15,7 @@ REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 ACCESS_TOKEN_COOKIE_NAME = "access_token"
 REFRESH_TOKEN_COOKIE_NAME = "refresh_token"
+CSRF_TOKEN_COOKIE_NAME = "csrf_token"
 
 ACCESS_COOKIE_MAX_AGE = int(timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES).total_seconds())
 
@@ -49,6 +51,10 @@ def create_refresh_token(user_id: int):
     token = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
 
     return token, jti, expire
+
+
+def create_csrf_token() -> str:
+    return secrets.token_urlsafe(32)
 
 
 def decode_token(token: str):

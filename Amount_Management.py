@@ -10,6 +10,9 @@ from Users.Models import UserModel
 from Users.SessionModels import RefreshTokenModel
 from Expenses.Models import Payment_History
 
+from Auth.router import router as auth_router
+from Auth.deps import get_current_user
+
 # ---------------------- Lifespan ---------------------- #
 # Application startup and shutdown events
 @asynccontextmanager
@@ -25,6 +28,8 @@ async def lifespan(app: FastAPI):
 # Use patch_fastapi to enable offline Swagger docs
 app = FastAPI(lifespan=lifespan, docs_url=None, swagger_ui_oauth2_swagger=None)
 patch_fastapi(app)
+
+app.include_router(auth_router)
 
 
 
@@ -51,10 +56,18 @@ def root():
 
 # POST /expenses - Create a new expense
 @app.post("/expenses", status_code=status.HTTP_201_CREATED, response_model=ExpenseResponse)
-def create_expense(expense: ExpenseCreate = Body(), db: Session = Depends(get_db)):
-    # Create SQLAlchemy object
-    new_expense = Payment_History(title=expense.title.title(), amount=expense.amount, description=expense.description, payment_type=expense.payment_type)
-    # Add object to session & Save changes into database & Refresh
+def create_expense(
+    expense: ExpenseCreate = Body(),
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    new_expense = Payment_History(
+        title=expense.title.title(),
+        amount=expense.amount,
+        description=expense.description,
+        payment_type=expense.payment_type,
+        user_id=current_user.id,
+    )
     db.add(new_expense)
     db.commit()
     db.refresh(new_expense)
@@ -63,27 +76,42 @@ def create_expense(expense: ExpenseCreate = Body(), db: Session = Depends(get_db
 
 # GET /expenses - Retrieve all expenses
 @app.get("/expenses", status_code=status.HTTP_200_OK, response_model=list[ExpenseResponse])
-def get_all_expenses(db: Session = Depends(get_db)):
-    # Retrieve all expense records
-    query = db.query(Payment_History).all()
+def get_all_expenses(
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
+    query = db.query(Payment_History).filter_by(user_id=current_user.id).all()
     return list(query)
 
 
 # GET /expenses/{id} - Retrieve a single expense by ID
 @app.get("/expenses/{expense_id}", status_code=status.HTTP_200_OK, response_model=ExpenseResponse)
-def get_expense_by_id(expense_id: int = Path(..., ge=1, description="Expense ID"), db: Session = Depends(get_db)):
-    # Retrieve expense or raise 404
+def get_expense_by_id(
+    expense_id: int = Path(..., ge=1, description="Expense ID"),
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
     expense = get_expense_or_404(expense_id, db)
+    if expense.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Expense with id {expense_id} not found")
     return expense
 
 
 # PUT /expenses/{id} - Update an existing expense
 @app.put("/expenses/{expense_id}", status_code=status.HTTP_200_OK, response_model=ExpenseResponse)
-def update_expense(expense_id: int = Path(..., ge=1), update_data: ExpenseUpdate = Body(),
-                   db: Session = Depends(get_db)):
-    # Retrieve expense or raise 404
+def update_expense(
+    expense_id: int = Path(..., ge=1),
+    update_data: ExpenseUpdate = Body(),
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
     expense = get_expense_or_404(expense_id, db)
-    # Update fields
+    if expense.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Expense with id {expense_id} not found")
     if update_data.title is not None:
         expense.title = update_data.title
     if update_data.amount is not None:
@@ -92,7 +120,6 @@ def update_expense(expense_id: int = Path(..., ge=1), update_data: ExpenseUpdate
         expense.description = update_data.description
     if update_data.payment_type is not None:
         expense.payment_type = update_data.payment_type
-    # Save changes into database & Refresh updated object
     db.commit()
     db.refresh(expense)
     return expense
@@ -100,10 +127,16 @@ def update_expense(expense_id: int = Path(..., ge=1), update_data: ExpenseUpdate
 
 # DELETE /expenses/{id} - Delete an expense
 @app.delete("/expenses/{expense_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_expense(expense_id: int = Path(..., ge=1), db: Session = Depends(get_db)):
-    # Retrieve expense or raise 404
+def delete_expense(
+    expense_id: int = Path(..., ge=1),
+    db: Session = Depends(get_db),
+    current_user: UserModel = Depends(get_current_user),
+):
     expense = get_expense_or_404(expense_id, db)
-    # Delete expense from database & Save changes
+    if expense.user_id != current_user.id:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Expense with id {expense_id} not found")
     db.delete(expense)
     db.commit()
     return None
