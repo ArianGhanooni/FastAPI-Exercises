@@ -8,11 +8,11 @@ from Core.Schemas import ExpenseCreate, ExpenseUpdate, ExpenseResponse
 from Core.i18n import detect_language, get_translations
 
 from Users.Models import UserModel
-from Users.SessionModels import RefreshTokenModel
 from Expenses.Models import Payment_History
 
 from Auth.router import router as auth_router
 from Auth.deps import get_current_user
+
 
 # ---------------------- Lifespan ---------------------- #
 # Application startup and shutdown events
@@ -33,7 +33,6 @@ patch_fastapi(app)
 app.include_router(auth_router)
 
 
-
 # ---------------------- Helper Function Raises 404 Error ---------------------- #
 def get_expense_or_404(expense_id: int, db: Session):
     """Get expense by ID or raise 404"""
@@ -42,8 +41,8 @@ def get_expense_or_404(expense_id: int, db: Session):
     # Raise error if not found
     if expense is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="expense_not_found")
+            status_code=status.HTTP_404_NOT_FOUND, detail="expense_not_found"
+        )
     return expense
 
 
@@ -54,19 +53,22 @@ def root(request: Request):
     """Root endpoint with a welcome message."""
     lang = detect_language(request)
     t = get_translations(lang)
-    return JSONResponse(content={"message": t.gettext("welcome_message")}, status_code=status.HTTP_200_OK)
+    return JSONResponse(
+        content={"message": t.gettext("welcome_message")},
+        status_code=status.HTTP_200_OK,
+    )
 
 
 # POST /expenses - Create a new expense
-@app.post("/expenses", status_code=status.HTTP_201_CREATED, response_model=ExpenseResponse)
+@app.post(
+    "/expenses", status_code=status.HTTP_201_CREATED, response_model=ExpenseResponse
+)
 def create_expense(
     request: Request,
     expense: ExpenseCreate = Body(),
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
 ):
-    lang = detect_language(request)
-    t = get_translations(lang)
     new_expense = Payment_History(
         title=expense.title.title(),
         amount=expense.amount,
@@ -81,7 +83,9 @@ def create_expense(
 
 
 # GET /expenses - Retrieve all expenses
-@app.get("/expenses", status_code=status.HTTP_200_OK, response_model=list[ExpenseResponse])
+@app.get(
+    "/expenses", status_code=status.HTTP_200_OK, response_model=list[ExpenseResponse]
+)
 def get_all_expenses(
     db: Session = Depends(get_db),
     current_user: UserModel = Depends(get_current_user),
@@ -91,7 +95,11 @@ def get_all_expenses(
 
 
 # GET /expenses/{id} - Retrieve a single expense by ID
-@app.get("/expenses/{expense_id}", status_code=status.HTTP_200_OK, response_model=ExpenseResponse)
+@app.get(
+    "/expenses/{expense_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=ExpenseResponse,
+)
 def get_expense_by_id(
     expense_id: int = Path(..., ge=1, description="Expense ID"),
     db: Session = Depends(get_db),
@@ -100,13 +108,17 @@ def get_expense_by_id(
     expense = get_expense_or_404(expense_id, db)
     if expense.user_id != current_user.id:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="expense_not_found")
+            status_code=status.HTTP_404_NOT_FOUND, detail="expense_not_found"
+        )
     return expense
 
 
 # PUT /expenses/{id} - Update an existing expense
-@app.put("/expenses/{expense_id}", status_code=status.HTTP_200_OK, response_model=ExpenseResponse)
+@app.put(
+    "/expenses/{expense_id}",
+    status_code=status.HTTP_200_OK,
+    response_model=ExpenseResponse,
+)
 def update_expense(
     expense_id: int = Path(..., ge=1),
     update_data: ExpenseUpdate = Body(),
@@ -116,8 +128,8 @@ def update_expense(
     expense = get_expense_or_404(expense_id, db)
     if expense.user_id != current_user.id:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="expense_not_found")
+            status_code=status.HTTP_404_NOT_FOUND, detail="expense_not_found"
+        )
     if update_data.title is not None:
         expense.title = update_data.title
     if update_data.amount is not None:
@@ -141,8 +153,8 @@ def delete_expense(
     expense = get_expense_or_404(expense_id, db)
     if expense.user_id != current_user.id:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="expense_not_found")
+            status_code=status.HTTP_404_NOT_FOUND, detail="expense_not_found"
+        )
     db.delete(expense)
     db.commit()
     return None

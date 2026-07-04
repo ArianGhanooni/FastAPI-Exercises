@@ -6,7 +6,7 @@ from Core.Security import hash_password, verify_password
 from Core.i18n import detect_language, get_translations
 from Users.Models import UserModel
 from Users.SessionModels import RefreshTokenModel
-from Auth.Schema import LoginSchema, RegisterSchema, UserResponse, RefreshResponse
+from Auth.Schema import LoginSchema, RegisterSchema, UserResponse
 from Auth.JWT_Auth import (
     create_access_token,
     create_refresh_token,
@@ -31,7 +31,9 @@ def _(request: Request, key: str) -> str:
     return t.gettext(key)
 
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED
+)
 def register(request: Request, data: RegisterSchema, db: Session = Depends(get_db)):
     if db.query(UserModel).filter_by(username=data.username).first():
         raise HTTPException(
@@ -57,7 +59,12 @@ def register(request: Request, data: RegisterSchema, db: Session = Depends(get_d
 
 
 @router.post("/login", status_code=status.HTTP_200_OK)
-def login(request: Request, data: LoginSchema, response: Response, db: Session = Depends(get_db)):
+def login(
+    request: Request,
+    data: LoginSchema,
+    response: Response,
+    db: Session = Depends(get_db),
+):
     user = db.query(UserModel).filter_by(username=data.username).first()
 
     if not user or not verify_password(data.password, user.password):
@@ -117,61 +124,66 @@ def logout(
     return {"message": _(request, "logout_success")}
 
 
-@router.post("/refresh", status_code=status.HTTP_200_OK)
-def refresh_token(request: Request, response: Response, db: Session = Depends(get_db)):
-    refresh_token = request.cookies.get(REFRESH_TOKEN_COOKIE_NAME)
-
-    if not refresh_token:
+def _validate_refresh_token(token: str | None, request: Request) -> dict:
+    if not token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=_(request, "refresh_token_not_found"),
         )
-
     try:
-        payload = decode_token(refresh_token)
+        payload = decode_token(token)
     except Exception:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=_(request, "refresh_token_invalid"),
         )
-
     if payload.get("type") != "refresh":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=_(request, "refresh_token_invalid_type"),
         )
+    return payload
 
-    jti = payload.get("jti")
+
+def _revoke_old_session(db: Session, jti: str, request: Request):
     session = db.query(RefreshTokenModel).filter_by(token_jti=jti).first()
-
     if not session:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=_(request, "refresh_token_revoked"),
         )
-
     db.delete(session)
     db.commit()
 
+
+def _get_user_from_payload(db: Session, payload: dict, request: Request) -> UserModel:
     user_id = int(payload["sub"])
     user = db.query(UserModel).filter_by(id=user_id).first()
-
     if not user or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=_(request, "refresh_token_user_not_found"),
         )
+    return user
+
+
+@router.post("/refresh", status_code=status.HTTP_200_OK)
+def refresh_token(request: Request, response: Response, db: Session = Depends(get_db)):
+    token = request.cookies.get(REFRESH_TOKEN_COOKIE_NAME)
+    payload = _validate_refresh_token(token, request)
+
+    _revoke_old_session(db, payload.get("jti"), request)
+    user = _get_user_from_payload(db, payload, request)
 
     new_access_token = create_access_token(user.id)
     new_refresh_token, new_jti, new_expires_at = create_refresh_token(user.id)
     csrf_token = create_csrf_token()
 
-    new_session = RefreshTokenModel(
+    db.add(RefreshTokenModel(
         user_id=user.id,
         token_jti=new_jti,
         expires_at=new_expires_at,
-    )
-    db.add(new_session)
+    ))
     db.commit()
 
     set_access_cookie(response, new_access_token)

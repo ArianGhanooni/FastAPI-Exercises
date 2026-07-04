@@ -18,9 +18,7 @@ class Payment_History(Base):
     payment_type = Column(String(10))
 
     # Relationship to owner user
-    user = relationship(
-        "UserModel",
-        back_populates="payment_history")
+    user = relationship("UserModel", back_populates="payment_history")
 
     # Object representation for debugging
     def __repr__(self):

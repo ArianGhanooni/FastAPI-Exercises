@@ -5,12 +5,15 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 # SQLite database file location
 SQLALCHEMY_DATABASE_URI = "sqlite:///payment.db"
 # Create database engine
-engine = create_engine(SQLALCHEMY_DATABASE_URI,
-                       connect_args={"check_same_thread": False},)
+engine = create_engine(
+    SQLALCHEMY_DATABASE_URI,
+    connect_args={"check_same_thread": False},
+)
 # Create session factory
-session = sessionmaker(autocommit = False, autoflush = False, bind=engine)
+session = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 # Base class for all SQLAlchemy models
 Base = declarative_base()
+
 
 # ---------------------- Database Dependency ---------------------- #
 # Create and close database session for each request

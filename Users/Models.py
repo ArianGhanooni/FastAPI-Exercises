@@ -17,12 +17,10 @@ class UserModel(Base):
 
     # User expense history relationship
     payment_history = relationship(
-        "Payment_History",
-        back_populates="user",
-        cascade="all, delete-orphan")
+        "Payment_History", back_populates="user", cascade="all, delete-orphan"
+    )
 
     # User refresh token sessions
     sessions = relationship(
-        "RefreshTokenModel",
-        back_populates="user",
-        cascade="all, delete-orphan")
+        "RefreshTokenModel", back_populates="user", cascade="all, delete-orphan"
+    )
